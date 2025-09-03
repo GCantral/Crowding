@@ -1,0 +1,56 @@
+units		lj
+boundary	p p p
+atom_style	angle
+log 		log.cr_.txt
+pair_style table linear 1000
+#pair_modify shift yes
+if "${nn} == 00" then &
+	"read_data initial.xyz" &
+else &
+	"read_restart prod.restart2" 
+bond_style      fene
+special_bonds fene
+bond_coeff	1 30.0 1.5 1.0 1.0
+
+angle_style cosine
+angle_coeff 1 ${k_bend}
+
+group polymer type 1 
+group wall_p type 2
+
+
+if "${nn} == 00" then &
+	"velocity all create 1.0 95785587 rot yes dist gaussian"
+
+pair_coeff	* * LJ_AO.table LJ_AO_T 1.999
+
+pair_coeff	2 2 LJ_AO.table LJ_AO_T 0.12
+neighbor       1.0 bin
+if "${nn} == 00" then & 
+	"fix 3 polymer nve/limit 0.001" &
+else &
+	"fix 3 polymer nve"
+
+fix		4 polymer langevin 1.0 1.0 10.0 998728
+
+thermo_style	custom step temp pe ke ebond
+thermo_modify flush yes
+thermo          10000
+
+timestep	0.0005
+
+dump 1 polymer custom 100000 coord_dump/dump.*.txt id type x y z xu yu zu
+dump_modify 1 flush yes pad 9
+
+restart 10000  prod.restart1 prod.restart2
+if "${nn} == 00" then &
+	"run 5000000" &
+else &
+	"run 50000000"
+write_data data*.xyz
+write_restart 	restart.polymer_ring
+
+print "All done"
+print "${nn}"
+print "${k_bend}"
+
